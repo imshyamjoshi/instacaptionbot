@@ -8,9 +8,9 @@ from telegram.ext import Application, CommandHandler, MessageHandler, ContextTyp
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-TELEGRAM_TOKEN  = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 ALLOWED_USER_IDS = set(int(x) for x in os.environ["ALLOWED_TELEGRAM_USER_IDS"].split(","))
-STATE_FILE      = "state.json"
+STATE_FILE       = "state.json"
 
 def load_state():
     if os.path.exists(STATE_FILE):
@@ -34,7 +34,7 @@ def format_caption(log_num, thought, hashtags):
     return f"Log entry : {log_num}\n({today_str()})\n\n-- {thought}\n\n{tags}"
 
 async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if update.effective_user.id not in ALLOWED_USER_IDS:
         return
     state = load_state()
     ctx.user_data.clear()
@@ -49,13 +49,13 @@ async def start(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     )
 
 async def current(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if update.effective_user.id not in ALLOWED_USER_IDS:
         return
     state = load_state()
     await update.message.reply_text(f"Current log entry: {state['log_num']}")
 
 async def set_log(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if update.effective_user.id not in ALLOWED_USER_IDS:
         return
     try:
         num = int(ctx.args[0])
@@ -67,7 +67,7 @@ async def set_log(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Usage: /setlog 102")
 
 async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if update.effective_user.id not in ALLOWED_USER_IDS:
         return
     ctx.user_data.clear()
     await update.message.reply_text("Cancelled. Send your thought to start again.")
@@ -98,13 +98,19 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
 
 def main():
     app = Application.builder().token(TELEGRAM_TOKEN).build()
+
+    async def post_init(application):
+        await application.bot.delete_webhook(drop_pending_updates=True)
+
+    app.post_init = post_init
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("current", current))
     app.add_handler(CommandHandler("setlog", set_log))
     app.add_handler(CommandHandler("cancel", cancel))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     logger.info("Bot started.")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
