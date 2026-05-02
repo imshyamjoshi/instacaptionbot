@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 TELEGRAM_TOKEN  = os.environ["TELEGRAM_TOKEN"]
-ALLOWED_USER_ID = int(os.environ["ALLOWED_TELEGRAM_USER_ID"])
+ALLOWED_USER_IDS = set(int(x) for x in os.environ["ALLOWED_TELEGRAM_USER_IDS"].split(","))
 STATE_FILE      = "state.json"
 
 def load_state():
@@ -73,7 +73,7 @@ async def cancel(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Cancelled. Send your thought to start again.")
 
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ALLOWED_USER_ID:
+    if update.effective_user.id not in ALLOWED_USER_IDS:
         return
 
     text = update.message.text.strip()
